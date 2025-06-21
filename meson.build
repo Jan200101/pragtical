@@ -225,7 +225,18 @@ if not get_option('source-only')
 
         # Workaround for meson not correctly setting frameworks
         if host_machine.system() == 'darwin'
+            pragtical_link_args += ['-framework', 'AudioToolbox']
+            pragtical_link_args += ['-framework', 'AudioUnit']
+            pragtical_link_args += ['-framework', 'Carbon']
+            pragtical_link_args += ['-framework', 'Cocoa']
+            pragtical_link_args += ['-framework', 'CoreAudio']
+            pragtical_link_args += ['-framework', 'CoreFoundation']
             pragtical_link_args += ['-framework', 'CoreGraphics']
+            pragtical_link_args += ['-framework', 'CoreServices']
+            pragtical_link_args += ['-framework', 'ForceFeedback']
+            pragtical_link_args += ['-framework', 'Foundation']
+            pragtical_link_args += ['-framework', 'IOKit']
+            pragtical_link_args += ['-framework', 'QuartzCore']
         endif
 
     endif
