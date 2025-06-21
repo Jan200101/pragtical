@@ -79,7 +79,7 @@ endif
 cc = meson.get_compiler('c')
 
 pragtical_includes = []
-pragtical_cargs = ['-DSDL_MAIN_HANDLED', '-DPCRE2_STATIC']
+pragtical_cargs = ['-DPCRE2_STATIC']
 if get_option('renderer')
     pragtical_cargs += '-DPRAGTICAL_USE_SDL_RENDERER'
 endif
@@ -163,62 +163,69 @@ if not get_option('source-only')
         default_options: default_fallback_options + ['default_library=static']
     )
 
-    sdl_options = ['default_library=static']
+    sdl_dep = dependency('sdl2', required: false)
+    sdlmain_dep = cc.find_library('SDL2main', required: false)
 
-    # we explicitly need these
-    sdl_options += 'use_loadso=enabled'
-    sdl_options += 'prefer_dlopen=true'
-    sdl_options += 'use_video=enabled'
-    sdl_options += 'use_atomic=enabled'
-    sdl_options += 'use_threads=enabled'
-    sdl_options += 'use_timers=enabled'
-    # investigate if this is truly needed
-    # Do not remove before https://github.com/libsdl-org/SDL/issues/5413 is released
-    sdl_options += 'use_events=enabled'
-
-    if host_machine.system() == 'darwin' or host_machine.system() == 'windows'
-        sdl_options += 'use_video_x11=disabled'
-        sdl_options += 'use_video_wayland=disabled'
-    else
-        sdl_options += 'use_render=enabled'
-        sdl_options += 'use_video_x11=auto'
-        sdl_options += 'use_video_wayland=auto'
-    endif
-
-    # we leave this up to what the host system has except on windows
-    if host_machine.system() != 'windows'
-        sdl_options += 'use_video_opengl=auto'
-        sdl_options += 'use_video_openglesv2=auto'
-    else
-        sdl_options += 'use_video_opengl=disabled'
-        sdl_options += 'use_video_openglesv2=disabled'
-    endif
-
-    # we don't need these
-    sdl_options += 'test=false'
-    sdl_options += 'use_sensor=disabled'
-    sdl_options += 'use_haptic=disabled'
-    sdl_options += 'use_hidapi=disabled'
-    sdl_options += 'use_audio=disabled'
-    sdl_options += 'use_cpuinfo=disabled'
-    sdl_options += 'use_joystick=disabled'
-    sdl_options += 'use_joystick_xinput=disabled'
-    sdl_options += 'use_video_vulkan=disabled'
-    sdl_options += 'use_video_offscreen=disabled'
-    sdl_options += 'use_power=disabled'
-
-    sdl_dep = dependency('sdl2', fallback: ['sdl2', 'sdl2_dep'],
-        default_options: default_fallback_options + sdl_options
+    requires_sdlmain = (
+        host_machine.system() == 'windows'
     )
 
-    if host_machine.system() == 'windows'
-        if sdl_dep.type_name() == 'internal'
-            sdlmain_dep = dependency('sdl2main', fallback: ['sdl2main_dep'])
+    if get_option('wrap_mode') == 'forcefallback' or not sdl_dep.found() or (requires_sdlmain and not sdlmain_dep.found())
+        cmake = import('cmake')
+
+        sdl_options = cmake.subproject_options()
+        sdl_options.set_install(false)
+        sdl_options.add_cmake_defines({
+            'SDL_SHARED': false,
+            'SDL_STATIC': true,
+            'SDL_TESTS': false,
+            'SDL_LOADSO': true,
+
+            'SDL_VIDEO': true,
+            'SDL_ATOMIC': true,
+            'SDL_THREADS': true,
+            'SDL_TIMERS': true,
+
+            # investigate if this is truly needed
+            # Do not remove before https://github.com/libsdl-org/SDL/issues/5413 is released
+            'SDL_EVENTS': true,
+
+            'SDL_SENSOR': false,
+            'SDL_HAPTIC': false,
+            'SDL_HIDAPI': false,
+            'SDL_CPUINFO': false,
+            'SDL_JOYSTICK': false,
+            'SDL_XINPUT': false,
+            'SDL_VULKAN': false,
+            'SDL_OFFSCREEN': false,
+            'SDL_POWER': false
+        })
+        if host_machine.system() == 'darwin' or host_machine.system() == 'windows'
+            sdl_options.add_cmake_defines({
+                'SDL_X11': false,
+                'SDL_WAYLAND': false
+            })
         else
-            sdlmain_dep = cc.find_library('SDL2main')
+            sdl_options.add_cmake_defines({
+                'SDL_RENDER': true
+            })
         endif
-    else
-        sdlmain_dep = dependency('', required: false)
+
+        if host_machine.system() == 'windows'
+            sdl_options.add_cmake_defines({
+                'SDL_OPENGL': false,
+                'SDL_OPENGLES': false
+            })
+        endif
+
+        sdl_proj = cmake.subproject('sdl_cmake', options: sdl_options)
+        sdl_dep = sdl_proj.dependency('SDL2-static')
+        sdlmain_dep = sdl_proj.dependency('SDL2main')
+    endif
+
+    assert(sdl_dep.found(), 'SDL2 could not be found')
+    if requires_sdlmain
+        assert(sdlmain_dep.found(), 'SDL2main could not be found')
     endif
 
     pragtical_deps = [lua_dep, sdl_dep, sdlmain_dep, freetype_dep, pcre2_dep, uchardet_dep, libm, libdl, librt]
