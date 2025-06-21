@@ -193,6 +193,7 @@ if not get_option('source-only')
             'SDL_SENSOR': false,
             'SDL_HAPTIC': false,
             'SDL_HIDAPI': false,
+            'SDL_AUDIO': false,
             'SDL_CPUINFO': false,
             'SDL_JOYSTICK': false,
             'SDL_XINPUT': false,
@@ -221,6 +222,12 @@ if not get_option('source-only')
         sdl_proj = cmake.subproject('sdl_cmake', options: sdl_options)
         sdl_dep = sdl_proj.dependency('SDL2-static')
         sdlmain_dep = sdl_proj.dependency('SDL2main')
+
+        # Workaround for meson not correctly setting frameworks
+        if host_machine.system() == 'darwin'
+            pragtical_link_args += ['-framework', 'CoreGraphics']
+        endif
+
     endif
 
     assert(sdl_dep.found(), 'SDL2 could not be found')
