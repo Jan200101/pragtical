@@ -301,9 +301,8 @@ function common.fuzzy_match_with_recents(haystack, recents, needle)
       table.insert(recents_ext, recents[i])
     end
     table.insert(recents_ext, recents[1])
-    local others = common.fuzzy_match(haystack, "", true)
-    for i = 1, #others do
-      table.insert(recents_ext, others[i])
+    for i = 1, #haystack do
+      table.insert(recents_ext, haystack[i])
     end
     return recents_ext
   else
